@@ -9,6 +9,7 @@ __all__ = [
     "HierarchicalClassifier",
     "HierarchicalPredictor",
     "HierarchicalRegressor",
+    "HumanReviewClassifier",
     "OrdinalClassifier",
     "SubjectiveClassifier",
     "Thresholder",
@@ -22,6 +23,7 @@ from sklego.meta.estimator_transformer import EstimatorTransformer
 from sklego.meta.grouped_predictor import GroupedClassifier, GroupedPredictor, GroupedRegressor
 from sklego.meta.grouped_transformer import GroupedTransformer
 from sklego.meta.hierarchical_predictor import HierarchicalClassifier, HierarchicalPredictor, HierarchicalRegressor
+from sklego.meta.human_review_classifier import HumanReviewClassifier
 from sklego.meta.ordinal_classification import OrdinalClassifier
 from sklego.meta.outlier_classifier import OutlierClassifier
 from sklego.meta.regression_outlier_detector import RegressionOutlierDetector

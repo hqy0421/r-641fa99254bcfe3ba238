@@ -56,6 +56,43 @@ CPU times: user 918 ms, sys: 0 ns, total: 918 ms
 Wall time: 917 ms
 ```
 
+## HumanReviewClassifier
+
+The [`HumanReviewClassifier`][humanreview-api] wraps a binary probabilistic classifier and adds a human-in-the-loop review step with a limited review capacity. Instead of forcing every row into one of the two classes, it may flag at most `review_capacity` rows per batch for manual review.
+
+Three business costs drive the decision:
+
+- `false_positive_cost`: the cost of a *misjudgement*, automatically assigning the positive class to a truly negative row,
+- `false_negative_cost`: the cost of a *missed case*, automatically assigning the negative class to a truly positive row,
+- `review_cost`: the fixed cost of sending one row to a reviewer.
+
+For a row with positive-class probability `p`, the automatic expected losses are `(1 - p) · false_positive_cost` for saying positive and `p · false_negative_cost` for saying negative; when they are equal the negative class is chosen. Reviewing costs `review_cost` regardless of the true class, so a row is worth reviewing only when its automatic loss strictly exceeds that cost. Rows are ranked by this expected benefit and the best `review_capacity` rows take the review slots. Equal benefits keep the original row order, and rows with zero benefit never consume a slot.
+
+```py
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklego.meta import HumanReviewClassifier
+
+np.random.seed(0)
+n1, n2 = 50, 100
+X = np.concatenate([np.random.normal(0, 1, (n1, 2)), np.random.normal(2, 1, (n2, 2))], axis=0)
+y = np.concatenate([np.zeros(n1), np.ones(n2)])
+
+model = HumanReviewClassifier(
+    LogisticRegression(),
+    false_positive_cost=2.0,
+    false_negative_cost=4.0,
+    review_cost=0.5,
+    review_capacity=5,
+).fit(X, y)
+
+model.predict(X)          # two real class labels, with at most five "review" entries
+model.predict_proba(X)    # still exactly two columns: the two real class probabilities
+model.score(X, y)         # accuracy of the labels actually returned (review rows count as wrong)
+```
+
+The probabilities always describe the two real classes — no third probability column is introduced for review. `score` evaluates the labels actually returned by `predict`, rather than forwarding the underlying estimator's score. Because `predict` mixes the review label with (possibly integer) class labels in an object-dtype array, use `sklearn.metrics.make_scorer` with an object-dtype comparison when tuning with `GridSearchCV`.
+
 ## Grouped Prediction
 
 ![grouped-model](../_static/meta-models/grouped-model.png)
@@ -521,6 +558,7 @@ Probability calibration is _not_ enabled by default, but we provide a convenient
 As a meta-estimator, the `OrdinalClassifier` fits N-1 binary classifiers, which may be computationally expensive, especially with a large number of samples, features, or a complex classifier.
 
 [thresholder-api]: ../../api/meta#sklego.meta.thresholder.Thresholder
+[humanreview-api]: ../../api/meta#sklego.meta.human_review_classifier.HumanReviewClassifier
 [grouped-predictor-api]: ../../api/meta#sklego.meta.grouped_predictor.GroupedPredictor
 [grouped-classifier-api]: ../../api/meta#sklego.meta.grouped_predictor.GroupedClassifier
 [grouped-regressor-api]: ../../api/meta#sklego.meta.grouped_predictor.GroupedRegressor
